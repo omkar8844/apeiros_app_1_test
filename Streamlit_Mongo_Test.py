@@ -24,13 +24,12 @@ def test_connection(client: MongoClient):
 client = get_mongo_client()
 
 if test_connection(client):
-    st.success("Connected to MongoDB successfully!")
+    st.success("Connected to Apeiros MongoDB successfully!")
 else:
     st.error("Failed to connect to MongoDB.")
 
 
 if test_connection(client):
-    st.success("Connected to MongoDB successfully!")
 
     db_retail = client["apeirosretail"]
     store_details = db_retail["storeDetails"]
