@@ -218,8 +218,8 @@ if selected_storeId is not None:
                 box-shadow: 0 6px 18px rgba(0,0,0,0.25);
                 margin-top: 12px;
             ">
-                <div style="font-size:14px;opacity:0.9;">Organization phone for <strong>{selected_store}</strong></div>
-                <div style="font-size:28px;font-weight:700;margin-top:6px;color:#4DE1A2;">{phone}</div>
+                <div style="font-size:25px;opacity:0.9;">Organization phone for <strong>{selected_store}</strong></div>
+                <div style="font-size:30px;font-weight:700;margin-top:6px;color:#4DE1A2;">{phone}</div>
             </div>
             """,
             unsafe_allow_html=True
