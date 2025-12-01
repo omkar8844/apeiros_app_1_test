@@ -78,9 +78,6 @@ if stores:
 else:
     st.warning("No stores found.")
 
-# --- Count bills for selected store and display metric ---
-from pymongo.errors import PyMongoError
-
 def count_bills_for_store(store_objid):
     """
     Count bill documents in bill_requests where the storeId matches store_objid.
@@ -103,12 +100,36 @@ def count_bills_for_store(store_objid):
 
 # Only run when a store is selected
 if selected_storeId is not None:
-    # selected_storeId is an ObjectId (from store_details._id)
+    # selected_storeId is an ObjectId (from store_details._id) 
     bill_count = count_bills_for_store(selected_storeId)
 
     # If still None or zero, show helpful messages
     if bill_count is None:
         st.warning("Could not count bills due to an error.")
+        st.markdown(
+    f"""
+    <div style="
+        background: linear-gradient(135deg, #4B79A1, #283E51);
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        margin-top: 20px;
+    ">
+        <h3 style="margin-bottom: 10px;">Bills for {selected_store}</h3>
+        <h1 style="
+            font-size: 48px;
+            margin: 0;
+            font-weight: 800;
+            color: #FFD700;
+            text-shadow: 0 0 12px rgba(255,215,0,0.8);
+        ">{bill_count}</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
     else:
         st.metric(label=f"Bill count for '{selected_store}'", value=bill_count)
 else:
