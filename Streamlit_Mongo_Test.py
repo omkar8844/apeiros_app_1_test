@@ -133,7 +133,6 @@ if selected_storeId is not None:
 else:
     st.info("Selected store has no _id or store id could not be determined.")
 
-@st.cache_data(ttl=300)
 def fetch_store_by_objid(objid):
     """Return the full store document for the given ObjectId."""
     try:
@@ -141,7 +140,6 @@ def fetch_store_by_objid(objid):
     except Exception as e:
         st.error(f"Error fetching store document: {e}")
         return None
-@st.cache_data(ttl=300)
 def fetch_org_by_tenant(tenant_value):
     """
     tenant_value can be an ObjectId or string.
