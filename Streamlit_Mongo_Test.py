@@ -35,8 +35,8 @@ if test_connection(client):
     db_retail = client["apeirosretail"]
     store_details = db_retail["storeDetails"]
 
-    db_bills = client["apeirosdataprocessing"]
-    bill_requests = db_bills["billRequests"]
+    db_bills = client["apeirosretaildataprocessing"]
+    bill_requests = db_bills["billRequest"]
 
     st.write("Databases ready to use!")
 else:
@@ -46,6 +46,6 @@ st.title("Displaying a Pandas DataFrame in Streamlit")
 store_df=pd.DataFrame(list(store_details.find()))
 store_df=store_df.rename(columns={'_id':'storeId'})
 bill_df=pd.DataFrame(list(bill_requests.find())) 
-#bill_df=bill_df.merge(store_df[['storeId','storeName']],on='storeId',how='inner')
+bill_df=bill_df.merge(store_df[['storeId','storeName']],on='storeId',how='inner')
 st.dataframe(bill_df)
 
