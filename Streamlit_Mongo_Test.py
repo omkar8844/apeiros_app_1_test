@@ -1,13 +1,19 @@
+# app.py
 import streamlit as st
 import pandas as pd
 import json
+import datetime
 from typing import Optional, List, Dict
-from typing import Optional
-from bson.errors import InvalidId
+
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 from bson import ObjectId
-import datetime
+from bson.errors import InvalidId
+
+# -----------------------
+# Config / connection
+# -----------------------
+st.set_page_config(page_title="Apeiros Customer Support", layout="wide")
 
 MONGO_URI = st.secrets["mongodb"]["uri"]
 
@@ -15,252 +21,254 @@ MONGO_URI = st.secrets["mongodb"]["uri"]
 def get_mongo_client() -> MongoClient:
     return MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 
-def test_connection(client: MongoClient):
+def test_connection(client: MongoClient) -> bool:
     try:
         client.admin.command("ping")
         return True
-    except ServerSelectionTimeoutError:
+    except Exception:
         return False
 
-
 client = get_mongo_client()
-
-if test_connection(client):
-    st.success("Connected to Apeiros MongoDB successfully!")
-else:
+if not test_connection(client):
     st.error("Failed to connect to MongoDB.")
+    st.stop()
 
+# DB / collections
+db_retail = client["apeirosretail"]
+store_details = db_retail["storeDetails"]
+org_details = db_retail["organizationDetails"]
 
-if test_connection(client):
+# NOTE: your bills DB/collection name, adjust if needed
+db_bills = client["apeirosretaildataprocessing"]
+bill_requests = db_bills["billRequest"]
 
-    db_retail = client["apeirosretail"]
-    store_details = db_retail["storeDetails"]
-
-    db_bills = client["apeirosretaildataprocessing"]
-    bill_requests = db_bills["billRequest"]
-
-    st.write("Databases ready to use!")
-else:
-    st.error("Could not connect to database.")
-
-st.title("Apeiros Customer Support")
-store_df=pd.DataFrame(list(store_details.find()))
-store_df=store_df.rename(columns={'_id':'storeId'})
-# bill_df=pd.DataFrame(list(bill_requests.find())) 
-# bill_df=bill_df.merge(store_df[['storeId','storeName']],on='storeId',how='inner')
-# st.dataframe(bill_df)
-# Fetch storeName + storeId
-def get_store_list():
+# -----------------------
+# Helpers
+# -----------------------
+@st.cache_data(ttl=300)
+def get_store_list(limit: int = 10000) -> List[Dict]:
+    """Return list of stores with _id and storeName."""
     try:
-        cursor = store_details.find({}, {"_id": 1, "storeName": 1})
+        cursor = store_details.find({}, {"_id": 1, "storeName": 1}).limit(limit)
         stores = []
+        seen = set()
         for doc in cursor:
-            name = doc.get("storeName", "(No Name)")
-            sid = doc["_id"]   # use ObjectId
-            stores.append({"storeName": name, "storeId": sid})
+            name = doc.get("storeName") or "(No Name)"
+            sid = doc.get("_id")
+            label = name
+            # ensure uniqueness by label; if duplicate, include id short
+            if label in seen:
+                # append short id to make label unique
+                label = f"{name} ({str(sid)[:6]})"
+            seen.add(label)
+            stores.append({"storeName": name, "storeId": sid, "label": label})
         return stores
     except Exception as e:
-        st.error(f"Error fetching stores: {e}")
+        st.error(f"Error fetching store list: {e}")
         return []
-stores = get_store_list()
 
-if stores:
-    store_names = [s["storeName"] for s in stores]
-
-    selected_store = st.selectbox("Select Store", store_names)
-
-    # Find ObjectId
-    selected_storeId = next(
-        (s["storeId"] for s in stores if s["storeName"] == selected_store),
-        None
-    )
-
-    st.write("Selected Store:", selected_store)
-else:
-    st.warning("No stores found.")
-
-def count_bills_for_store(store_objid):
-    """
-    Count bill documents in bill_requests where the storeId matches store_objid.
-    Tries both ObjectId match and string match to be robust.
-    """
-    try:
-        # First try matching as an ObjectId (most likely)
-        q_objid = {"storeId": store_objid}
-        cnt = bill_requests.count_documents(q_objid)
-        if cnt and cnt > 0:
-            return cnt
-
-        # If no results, try matching the string form (in case storeId stored as string)
-        q_str = {"storeId": str(store_objid)}
-        cnt2 = bill_requests.count_documents(q_str)
-        return cnt2
-    except PyMongoError as e:
-        st.error(f"Error counting bills: {e}")
-        return None
-
-# Only run when a store is selected
-if selected_storeId is not None:
-    # selected_storeId is an ObjectId (from store_details._id) 
-    bill_count = count_bills_for_store(selected_storeId)
-
-    # If still None or zero, show helpful messages
-    if bill_count is None:
-        st.warning("Could not count bills due to an error.")
-    else:
-        st.markdown(
-    f"""
-    <div style="
-        background: linear-gradient(135deg, #4B79A1, #283E51);
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        color: white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        margin-top: 20px;
-    ">
-        <h3 style="margin-bottom: 10px;">Bills count for {selected_store}</h3>
-        <h1 style="
-            font-size: 48px;
-            margin: 0;
-            font-weight: 800;
-            color: #FFD700;
-            text-shadow: 0 0 12px rgba(255,215,0,0.8);
-        ">{bill_count}</h1>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-else:
-    st.info("Selected store has no _id or store id could not be determined.")
-
-def fetch_store_by_objid(objid):
-    """Return the full store document for the given ObjectId."""
+def fetch_store_by_objid(objid: ObjectId) -> Optional[dict]:
     try:
         return store_details.find_one({"_id": objid})
     except Exception as e:
         st.error(f"Error fetching store document: {e}")
         return None
-def fetch_org_by_tenant(tenant_value):
+
+def fetch_org_by_tenant(tenant_value) -> Optional[dict]:
     """
-    tenant_value can be an ObjectId or string.
-    We try both types when searching organizationDetails.
+    Attempt to find organizationDetails by tenantId.
+    Tries direct match, string match, and ObjectId match.
     """
     try:
-        org_coll = db_retail["organizationDetails"]
-        # 1) direct match (works if types match)
-        org = org_coll.find_one({"tenantId": tenant_value})
+        # 1) direct match
+        org = org_details.find_one({"tenantId": tenant_value})
         if org:
             return org
-        try:
-            org = org_coll.find_one({"tenantId": str(tenant_value)})
-            if org:
-                return org
-        except Exception:
-            pass
-
-        # 3) if tenant_value is string, try ObjectId match (if valid)
+        # 2) string match
+        org = org_details.find_one({"tenantId": str(tenant_value)})
+        if org:
+            return org
+        # 3) if tenant_value is string, try ObjectId
         if isinstance(tenant_value, str):
             try:
                 maybe_obj = ObjectId(tenant_value)
-                org = org_coll.find_one({"tenantId": maybe_obj})
+                org = org_details.find_one({"tenantId": maybe_obj})
                 if org:
                     return org
-            except (InvalidId, Exception):
+            except InvalidId:
                 pass
-
         return None
     except Exception as e:
         st.error(f"Error fetching organization: {e}")
         return None
 
-if selected_storeId is not None:
-    # read full store doc (to get tenantId or other fields)
-    store_doc = fetch_store_by_objid(selected_storeId)
+def count_bills_for_store(store_objid: ObjectId) -> Optional[int]:
+    """
+    Count documents in bill_requests where storeId matches selected store id.
+    Tries ObjectId match first, then string match.
+    """
+    try:
+        if store_objid is None:
+            return 0
+        q_objid = {"storeId": store_objid}
+        cnt = bill_requests.count_documents(q_objid)
+        if cnt and cnt > 0:
+            return cnt
+        # fallback to string match
+        cnt2 = bill_requests.count_documents({"storeId": str(store_objid)})
+        return cnt2
+    except PyMongoError as e:
+        st.error(f"Error counting bills: {e}")
+        return None
 
-    tenant_id = None
-    if store_doc:
-        tenant_id = store_doc.get("tenantId") or store_doc.get("tenant_id")  # try common variants
+def format_date(dt):
+    if isinstance(dt, datetime.datetime):
+        # localize/format as needed; using day month year
+        return dt.strftime("%d %B %Y")
+    return str(dt)
 
-    # If no tenant present, try to find it in nested address or org refs
-    if not tenant_id and store_doc:
-        # some schemas keep tenantId under nested fields; try common places
-        tenant_id = store_doc.get("organization", {}).get("tenantId") \
-                    or store_doc.get("org", {}).get("tenantId")
+def render_card(title: str, main_text: str, subtitle: Optional[str] = None, bg: str = "linear-gradient(135deg, #4B79A1, #283E51)"):
+    """Small helper to render a consistent card."""
+    subtitle_html = f'<div style="font-size:13px;opacity:0.85;">{subtitle}</div>' if subtitle else ""
+    st.markdown(
+        f"""
+        <div style="
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+            background: {bg};
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+            min-height:86px;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+        ">
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px;">{title}</div>
+            {subtitle_html}
+            <div style="font-size:28px;font-weight:700;margin-top:6px;color:#FFD700;">{main_text}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
+# -----------------------
+# UI
+# -----------------------
+st.title("Apeiros Customer Support")
+
+# Left: Optional store table preview (collapsed)
+with st.expander("Store list preview (first 100 rows)", expanded=False):
+    try:
+        preview_df = pd.DataFrame(list(store_details.find({}, {"storeName":1}).limit(100)))
+        if not preview_df.empty:
+            preview_df = preview_df.rename(columns={"_id": "storeId"})
+            preview_df["storeId"] = preview_df["storeId"].astype(str)
+            st.dataframe(preview_df)
+        else:
+            st.write("No stores to preview.")
+    except Exception as e:
+        st.write("Preview error:", e)
+
+# Select store
+stores = get_store_list()
+if not stores:
+    st.warning("No stores found in storeDetails or failed to load stores.")
+    st.stop()
+
+options = [s["label"] for s in stores]
+selected_label = st.selectbox("Select store", options)
+
+# map selection back to storeId and storeName
+selected_store = next((s for s in stores if s["label"] == selected_label), None)
+if not selected_store:
+    st.warning("Selected store not found (unexpected).")
+    st.stop()
+
+selected_store_name = selected_store["storeName"]
+selected_store_id = selected_store["storeId"]  # ObjectId
+
+# Fetch full store document (no caching because ObjectId)
+store_doc = fetch_store_by_objid(selected_store_id)
+
+# Extract tenantId if present
+tenant_id = None
+if store_doc:
+    tenant_id = store_doc.get("tenantId") or store_doc.get("tenant_id") \
+                or store_doc.get("organization", {}).get("tenantId") \
+                or store_doc.get("org", {}).get("tenantId")
+
+# Build three cards in the requested order:
+# 1) On-boarding Date (createdAt)
+# 2) Phone number (organizationDetails -> tenantId)
+# 3) Bill count
+
+col1, col2, col3 = st.columns([1,1,1])
+
+# 1) On-boarding Date
+with col1:
+    created_at_raw = store_doc.get("createdAt") if store_doc else None
+    if created_at_raw:
+        created_at = format_date(created_at_raw)
+        render_card("On-boarding Date", created_at, subtitle=selected_store_name, bg="linear-gradient(90deg, #2c5364, #203a43, #0f2027)")
+    else:
+        render_card("On-boarding Date", "Not available", subtitle=selected_store_name, bg="linear-gradient(90deg,#555,#333)")
+
+# 2) Phone number (organizationDetails via tenantId)
+with col2:
     phone = None
     org_doc = None
     if tenant_id:
         org_doc = fetch_org_by_tenant(tenant_id)
-        if org_doc:
-            # phone field might be named phoneNumber, phone, contact, mobile etc — try common keys
-            phone = org_doc.get("phoneNumber") or org_doc.get("phone") or org_doc.get("contactNumber") or org_doc.get("mobile")
-
-    # If still no org_doc, optionally try to search organizationDetails by store name as fallback
+    # fallback: try to match org by storeName
     if not org_doc and store_doc and store_doc.get("storeName"):
         try:
-            org_coll = db_retail["organizationDetails"]
-            org_doc = org_coll.find_one({"name": store_doc.get("storeName")})
-            if org_doc and not phone:
-                phone = org_doc.get("phoneNumber") or org_doc.get("phone")
+            org_doc = org_details.find_one({"name": store_doc.get("storeName")})
         except Exception:
-            pass
+            org_doc = None
 
-    # Render phone nicely
+    if org_doc:
+        phone = org_doc.get("phoneNumber") or org_doc.get("phone") or org_doc.get("contactNumber") or org_doc.get("mobile")
+
     if phone:
-        st.markdown(
-            f"""
-            <div style="
-                padding: 14px;
-                border-radius: 10px;
-                text-align: center;
-                background: linear-gradient(90deg, #0f2027, #203a43);
-                color: #fff;
-                box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-                margin-top: 12px;
-            ">
-                <div style="font-size:25px;opacity:0.9;">Organization phone for <strong>{selected_store}</strong></div>
-                <div style="font-size:30px;font-weight:700;margin-top:6px;color:#4DE1A2;">{phone}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # clickable tel link (works on mobile / some desktops)
+        phone_html = f'<a href="tel:{phone}" style="color:inherit;text-decoration:none;">{phone}</a>'
+        render_card("Organization Phone", phone_html, subtitle="Tap to call", bg="linear-gradient(90deg,#0f2027,#203a43)")
     else:
-        st.info("Organization phone number not found for this store (tenantId missing or not present in organizationDetails).")
+        render_card("Organization Phone", "Not available", subtitle="tenantId missing or not found", bg="linear-gradient(90deg,#403b4a,#e7e9bb)")
 
-
-created_at_raw = store_doc.get("createdAt")
-def format_date(dt):
-    if isinstance(dt, datetime.datetime):
-        return dt.strftime("%d %B %Y")      # Example: 05 March 2024
-    return str(dt)
-
-if store_doc:
-    created_at_raw = store_doc.get("createdAt")
-
-    if created_at_raw:
-        # nicely formatted
-        try:
-            created_at = format_date(created_at_raw)
-        except:
-            created_at = str(created_at_raw)
-
-        st.markdown(
-            f"""
-            <div style="
-                padding: 14px;
-                border-radius: 10px;
-                text-align: center;
-                background: linear-gradient(90deg, #2c5364, #203a43, #0f2027);
-                color: #fff;
-                box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-                margin-top: 12px;
-            ">
-                <div style="font-size:15px;opacity:0.8;">On-boarding Date</div>
-                <div style="font-size:28px;font-weight:700;margin-top:6px;color:#4DE1A2;">{created_at}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+# 3) Bill count
+with col3:
+    bill_count = count_bills_for_store(selected_store_id)
+    if bill_count is None:
+        render_card("Bills count", "Error", subtitle="Could not count bills", bg="linear-gradient(90deg,#8e2de2,#4a00e0)")
     else:
-        st.info("On-boarding date (createdAt) not found for this store.")
+        render_card("Bills count", str(bill_count), subtitle="Total bills for this store", bg="linear-gradient(90deg,#4B79A1,#283E51)")
+
+# -----------------------
+# Optional: show recent bills table (toggle)
+# -----------------------
+if st.checkbox("Show recent bills for selected store"):
+    try:
+        # Fetch last 50 bills sorted by createdAt or _id desc
+        # We attempt to match by ObjectId then by string
+        q = {"storeId": selected_store_id}
+        recent = list(bill_requests.find(q).sort([("_id", -1)]).limit(50))
+        if not recent:
+            # fallback to string match
+            q2 = {"storeId": str(selected_store_id)}
+            recent = list(bill_requests.find(q2).sort([("_id", -1)]).limit(50))
+
+        if recent:
+            for r in recent:
+                # convert ObjectIds to strings for display
+                if "_id" in r:
+                    r["_id"] = str(r["_id"])
+                if "storeId" in r and isinstance(r["storeId"], ObjectId):
+                    r["storeId"] = str(r["storeId"])
+            recent_df = pd.json_normalize(recent)
+            st.dataframe(recent_df)
+        else:
+            st.info("No recent bills found for this store.")
+    except Exception as e:
+        st.error(f"Error fetching recent bills: {e}")
