@@ -44,6 +44,10 @@ else:
     st.error("Could not connect to database.")
 
 st.title("Displaying a Pandas DataFrame in Streamlit")
-df=pd.DataFrame(list(store_details.find()))
-st.dataframe(df)   
+store_df=pd.DataFrame(list(store_details.find()))
+store_df.rename(columns={'_id':'storeId'})
+st.title("Displaying a Pandas DataFrame in Streamlit")
+
+# Display DataFrame
+st.dataframe(store_df)   # Interactive tabl
 
