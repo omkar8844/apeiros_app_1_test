@@ -77,3 +77,40 @@ if stores:
     st.write("Selected Store:", selected_store)
 else:
     st.warning("No stores found.")
+
+# --- Count bills for selected store and display metric ---
+from pymongo.errors import PyMongoError
+
+def count_bills_for_store(store_objid):
+    """
+    Count bill documents in bill_requests where the storeId matches store_objid.
+    Tries both ObjectId match and string match to be robust.
+    """
+    try:
+        # First try matching as an ObjectId (most likely)
+        q_objid = {"storeId": store_objid}
+        cnt = bill_requests.count_documents(q_objid)
+        if cnt and cnt > 0:
+            return cnt
+
+        # If no results, try matching the string form (in case storeId stored as string)
+        q_str = {"storeId": str(store_objid)}
+        cnt2 = bill_requests.count_documents(q_str)
+        return cnt2
+    except PyMongoError as e:
+        st.error(f"Error counting bills: {e}")
+        return None
+
+# Only run when a store is selected
+if selected_storeId is not None:
+    # selected_storeId is an ObjectId (from store_details._id)
+    bill_count = count_bills_for_store(selected_storeId)
+
+    # If still None or zero, show helpful messages
+    if bill_count is None:
+        st.warning("Could not count bills due to an error.")
+    else:
+        st.metric(label=f"Bill count for '{selected_store}'", value=bill_count)
+else:
+    st.info("Selected store has no _id or store id could not be determined.")
+
