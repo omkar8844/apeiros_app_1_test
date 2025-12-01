@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import json
 from typing import Optional, List, Dict
-
+from typing import Optional
+from bson.errors import InvalidId
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 from bson import ObjectId
@@ -132,3 +133,98 @@ if selected_storeId is not None:
 else:
     st.info("Selected store has no _id or store id could not be determined.")
 
+@st.cache_data(ttl=300)
+def fetch_store_by_objid(objid):
+    """Return the full store document for the given ObjectId."""
+    try:
+        return store_details.find_one({"_id": objid})
+    except Exception as e:
+        st.error(f"Error fetching store document: {e}")
+        return None
+@st.cache_data(ttl=300)
+def fetch_org_by_tenant(tenant_value):
+    """
+    tenant_value can be an ObjectId or string.
+    We try both types when searching organizationDetails.
+    """
+    try:
+        org_coll = db_retail["organizationDetails"]
+        # 1) direct match (works if types match)
+        org = org_coll.find_one({"tenantId": tenant_value})
+        if org:
+            return org
+        try:
+            org = org_coll.find_one({"tenantId": str(tenant_value)})
+            if org:
+                return org
+        except Exception:
+            pass
+
+        # 3) if tenant_value is string, try ObjectId match (if valid)
+        if isinstance(tenant_value, str):
+            try:
+                maybe_obj = ObjectId(tenant_value)
+                org = org_coll.find_one({"tenantId": maybe_obj})
+                if org:
+                    return org
+            except (InvalidId, Exception):
+                pass
+
+        return None
+    except Exception as e:
+        st.error(f"Error fetching organization: {e}")
+        return None
+
+if selected_storeId is not None:
+    # read full store doc (to get tenantId or other fields)
+    store_doc = fetch_store_by_objid(selected_storeId)
+
+    tenant_id = None
+    if store_doc:
+        tenant_id = store_doc.get("tenantId") or store_doc.get("tenant_id")  # try common variants
+
+    # If no tenant present, try to find it in nested address or org refs
+    if not tenant_id and store_doc:
+        # some schemas keep tenantId under nested fields; try common places
+        tenant_id = store_doc.get("organization", {}).get("tenantId") \
+                    or store_doc.get("org", {}).get("tenantId")
+
+    phone = None
+    org_doc = None
+    if tenant_id:
+        org_doc = fetch_org_by_tenant(tenant_id)
+        if org_doc:
+            # phone field might be named phoneNumber, phone, contact, mobile etc — try common keys
+            phone = org_doc.get("phoneNumber") or org_doc.get("phone") or org_doc.get("contactNumber") or org_doc.get("mobile")
+
+    # If still no org_doc, optionally try to search organizationDetails by store name as fallback
+    if not org_doc and store_doc and store_doc.get("storeName"):
+        try:
+            org_coll = db_retail["organizationDetails"]
+            org_doc = org_coll.find_one({"name": store_doc.get("storeName")})
+            if org_doc and not phone:
+                phone = org_doc.get("phoneNumber") or org_doc.get("phone")
+        except Exception:
+            pass
+
+    # Render phone nicely
+    if phone:
+        st.markdown(
+            f"""
+            <div style="
+                padding: 14px;
+                border-radius: 10px;
+                text-align: center;
+                background: linear-gradient(90deg, #0f2027, #203a43);
+                color: #fff;
+                box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+                margin-top: 12px;
+            ">
+                <div style="font-size:14px;opacity:0.9;">Organization phone for <strong>{selected_store}</strong></div>
+                <div style="font-size:28px;font-weight:700;margin-top:6px;color:#4DE1A2;">{phone}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.info("Organization phone number not found for this store (tenantId missing or not present in organizationDetails).")
