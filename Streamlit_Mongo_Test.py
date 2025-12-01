@@ -314,7 +314,7 @@ else:
 
 # Render the two wallet cards in a new row under existing cards
 st.markdown("---")
-st.subheader("Customer Wallet (promotional)")
+st.subheader("Customer Wallet")
 
 wcol1, wcol2 = st.columns([1, 1])
 
