@@ -85,7 +85,3 @@ if fetch_btn:
                         client.close()
                     except Exception:
                         pass
-
-
-st.markdown("---")
-st.markdown("**How to use:**\n\n1. Add your MongoDB URI to `.streamlit/secrets.toml` under `[mongodb]` with key `uri`.\n\nExample `secrets.toml`:\n\n```toml\n[mongodb]\nuri = \"mongodb+srv://apeiros:ub9G08Spcdgo@apeiros-mongodb-prod.mongocluster.cosmos.azure.com/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000\"\n```\n\n2. Install requirements: `pip install streamlit pymongo pandas`\n3. Run the app: `streamlit run streamlit_mongo_test.py`\n\nThe app will try to `ping` the server and fetch documents from `apeirosretail.storeDetails`.")
