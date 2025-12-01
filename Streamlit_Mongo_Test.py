@@ -51,33 +51,30 @@ store_df=store_df.rename(columns={'_id':'storeId'})
 # Fetch storeName + storeId
 def get_store_list():
     try:
-        cursor = store_details.find({}, {"storeName": 1, "_id": 1})
+        cursor = store_details.find({}, {"_id": 1, "storeName": 1})
         stores = []
         for doc in cursor:
-            name = doc.get("storeName")
-            sid = doc.get("storeId")
-            if name:
-                stores.append({"storeName": name, "_id": sid})
+            name = doc.get("storeName", "(No Name)")
+            sid = doc["_id"]   # use ObjectId
+            stores.append({"storeName": name, "storeId": sid})
         return stores
     except Exception as e:
         st.error(f"Error fetching stores: {e}")
         return []
 stores = get_store_list()
+
 if stores:
-    # Unique + sorted
-    store_names = sorted(list({s["storeName"] for s in stores}))
+    store_names = [s["storeName"] for s in stores]
 
     selected_store = st.selectbox("Select Store", store_names)
 
-    # Get the matching storeId
-    selected_storeId = None
-    for s in stores:
-        if s["storeName"] == selected_store:
-            selected_storeId = s["_id"]
-            break
+    # Find ObjectId
+    selected_storeId = next(
+        (s["storeId"] for s in stores if s["storeName"] == selected_store),
+        None
+    )
 
-    st.write("Selected store:", selected_store)
-    st.write("Store ID:", selected_storeId)
+    st.write("Selected Store:", selected_store)
+    st.write("Store ObjectId:", selected_storeId)
 else:
-    st.warning("No stores found in storeDetails collection.")
-
+    st.warning("No stores found.")
