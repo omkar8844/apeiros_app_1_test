@@ -75,6 +75,5 @@ if stores:
     )
 
     st.write("Selected Store:", selected_store)
-    st.write("Store ObjectId:", selected_storeId)
 else:
     st.warning("No stores found.")
