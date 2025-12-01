@@ -235,3 +235,103 @@ if st.checkbox("Show recent bills for selected store"):
             st.info("No recent bills found for this store.")
     except Exception as e:
         st.error(f"Error fetching recent bills: {e}")
+
+# -----------------------
+# Wallet stats from promotionalMessageCredit
+# -----------------------
+def safe_num(x):
+    """Convert various types to float safely, fallback 0."""
+    try:
+        if x is None:
+            return 0.0
+        if isinstance(x, (int, float)):
+            return float(x)
+        # handle numeric strings with commas
+        if isinstance(x, str):
+            x_clean = x.replace(",", "").strip()
+            return float(x_clean) if x_clean != "" else 0.0
+    except Exception:
+        return 0.0
+    return 0.0
+
+def get_wallet_stats_by_tenant(tenant_value):
+    """
+    Returns dict: {'balance': sum(lifetimeCredits), 'consumption': sum(lifetimeConsumption)}
+    Tries direct tenantValue match, string match, and ObjectId match (if tenant_value is str).
+    """
+    db_cm = client["apeirosretailcustomermanagement"]
+    coll = db_cm["promotionalMessageCredit"]
+    try:
+        # Try direct match
+        cursor = list(coll.find({"tenantId": tenant_value}))
+        if not cursor and tenant_value is not None:
+            # Try string match
+            cursor = list(coll.find({"tenantId": str(tenant_value)}))
+
+        if not cursor and isinstance(tenant_value, str):
+            # Try converting to ObjectId if possible
+            try:
+                tid_obj = ObjectId(tenant_value)
+                cursor = list(coll.find({"tenantId": tid_obj}))
+            except Exception:
+                pass
+
+        # If still empty, return zeros
+        if not cursor:
+            return {"balance": 0.0, "consumption": 0.0, "docs_count": 0}
+
+        total_credits = 0.0
+        total_consumption = 0.0
+        for d in cursor:
+            total_credits += safe_num(d.get("lifetimeCredits"))
+            total_consumption += safe_num(d.get("lifetimeConsumption"))
+
+        return {"balance": total_credits, "consumption": total_consumption, "docs_count": len(cursor)}
+    except Exception as e:
+        st.error(f"Error fetching wallet stats: {e}")
+        return {"balance": 0.0, "consumption": 0.0, "docs_count": 0}
+
+# Only run if we have tenant_id (otherwise try to derive)
+wallet_balance = None
+wallet_consumption = None
+wallet_docs = 0
+
+if tenant_id:
+    stats = get_wallet_stats_by_tenant(tenant_id)
+    wallet_balance = stats["balance"]
+    wallet_consumption = stats["consumption"]
+    wallet_docs = stats["docs_count"]
+else:
+    # Attempt to derive tenant_id from store_doc fields (extra try)
+    derived_tenant = None
+    if store_doc:
+        derived_tenant = store_doc.get("tenantId") or store_doc.get("tenant_id") or store_doc.get("organization", {}).get("tenantId")
+    if derived_tenant:
+        stats = get_wallet_stats_by_tenant(derived_tenant)
+        wallet_balance = stats["balance"]
+        wallet_consumption = stats["consumption"]
+        wallet_docs = stats["docs_count"]
+
+# Render the two wallet cards in a new row under existing cards
+st.markdown("---")
+st.subheader("Customer Wallet (promotional)")
+
+wcol1, wcol2 = st.columns([1, 1])
+
+with wcol1:
+    if wallet_balance is None:
+        render_card("Wallet Balance", "Not available", subtitle="tenantId missing or not found", bg="linear-gradient(90deg,#283E51,#4B79A1)")
+    else:
+        # Format nicely with 2 decimal places, strip .00 if integer-looking
+        def fmt(x):
+            if abs(x - round(x)) < 1e-9:
+                return f"{int(round(x))}"
+            return f"{x:,.2f}"
+        render_card("Wallet Balance", fmt(wallet_balance), subtitle=f"{wallet_docs} promo doc(s) matched", bg="linear-gradient(90deg,#0f2027,#203a43)")
+
+with wcol2:
+    if wallet_consumption is None:
+        render_card("Wallet Consumption", "Not available", subtitle="tenantId missing or not found", bg="linear-gradient(90deg,#8e2de2,#4a00e0)")
+    else:
+        render_card("Wallet Consumption", fmt(wallet_consumption), subtitle=f"{wallet_docs} promo doc(s) matched", bg="linear-gradient(90deg,#4B79A1,#283E51)")
+
