@@ -102,7 +102,7 @@ def count_bills_for_store(store_objid):
 if selected_storeId is not None:
     # selected_storeId is an ObjectId (from store_details._id) 
     bill_count = count_bills_for_store(selected_storeId)
-            st.markdown(
+    st.markdown(
     f"""
     <div style="
         background: linear-gradient(135deg, #4B79A1, #283E51);
