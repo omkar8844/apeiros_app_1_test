@@ -42,7 +42,7 @@ if test_connection(client):
 else:
     st.error("Could not connect to database.")
 
-st.title("Displaying a Pandas DataFrame in Streamlit")
+st.title("Apeiros Customer Support")
 store_df=pd.DataFrame(list(store_details.find()))
 store_df=store_df.rename(columns={'_id':'storeId'})
 # bill_df=pd.DataFrame(list(bill_requests.find())) 
