@@ -7,6 +7,7 @@ from bson.errors import InvalidId
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 from bson import ObjectId
+import datetime
 
 MONGO_URI = st.secrets["mongodb"]["uri"]
 
@@ -226,3 +227,40 @@ if selected_storeId is not None:
         )
     else:
         st.info("Organization phone number not found for this store (tenantId missing or not present in organizationDetails).")
+
+
+created_at_raw = store_doc.get("createdAt")
+def format_date(dt):
+    if isinstance(dt, datetime.datetime):
+        return dt.strftime("%d %B %Y")      # Example: 05 March 2024
+    return str(dt)
+
+if store_doc:
+    created_at_raw = store_doc.get("createdAt")
+
+    if created_at_raw:
+        # nicely formatted
+        try:
+            created_at = format_date(created_at_raw)
+        except:
+            created_at = str(created_at_raw)
+
+        st.markdown(
+            f"""
+            <div style="
+                padding: 14px;
+                border-radius: 10px;
+                text-align: center;
+                background: linear-gradient(90deg, #2c5364, #203a43, #0f2027);
+                color: #fff;
+                box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+                margin-top: 12px;
+            ">
+                <div style="font-size:15px;opacity:0.8;">On-boarding Date</div>
+                <div style="font-size:28px;font-weight:700;margin-top:6px;color:#4DE1A2;">{created_at}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.info("On-boarding date (createdAt) not found for this store.")
