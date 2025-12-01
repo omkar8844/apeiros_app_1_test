@@ -45,7 +45,7 @@ else:
 
 st.title("Displaying a Pandas DataFrame in Streamlit")
 store_df=pd.DataFrame(list(store_details.find()))
-store_df.rename(columns={'_id':'storeId'})
+store_df=store_df.rename(columns={'_id':'storeId'})
 st.title("Displaying a Pandas DataFrame in Streamlit")
 
 # Display DataFrame
