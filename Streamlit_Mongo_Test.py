@@ -314,7 +314,7 @@ else:
 
 # Render the two wallet cards in a new row under existing cards
 st.markdown("---")
-st.subheader("Customer Wallet (promotional)")
+st.subheader("Customer Wallet")
 
 wcol1, wcol2 = st.columns([1, 1])
 
@@ -327,11 +327,11 @@ with wcol1:
             if abs(x - round(x)) < 1e-9:
                 return f"{int(round(x))}"
             return f"{x:,.2f}"
-        render_card("Wallet Balance", fmt(wallet_balance), subtitle=f"{wallet_docs} promo doc(s) matched", bg="linear-gradient(90deg,#0f2027,#203a43)")
+        render_card("Wallet Balance", fmt(wallet_balance), bg="linear-gradient(90deg,#0f2027,#203a43)")
 
 with wcol2:
     if wallet_consumption is None:
         render_card("Wallet Consumption", "Not available", subtitle="tenantId missing or not found", bg="linear-gradient(90deg,#8e2de2,#4a00e0)")
     else:
-        render_card("Wallet Consumption", fmt(wallet_consumption), subtitle=f"{wallet_docs} promo doc(s) matched", bg="linear-gradient(90deg,#4B79A1,#283E51)")
+        render_card("Wallet Consumption", fmt(wallet_consumption), bg="linear-gradient(90deg,#4B79A1,#283E51)")
 
