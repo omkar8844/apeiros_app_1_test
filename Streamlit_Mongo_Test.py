@@ -102,7 +102,12 @@ def count_bills_for_store(store_objid):
 if selected_storeId is not None:
     # selected_storeId is an ObjectId (from store_details._id) 
     bill_count = count_bills_for_store(selected_storeId)
-    st.markdown(
+
+    # If still None or zero, show helpful messages
+    if bill_count is None:
+        st.warning("Could not count bills due to an error.")
+    else:
+        st.markdown(
     f"""
     <div style="
         background: linear-gradient(135deg, #4B79A1, #283E51);
@@ -113,7 +118,7 @@ if selected_storeId is not None:
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         margin-top: 20px;
     ">
-        <h3 style="margin-bottom: 10px;">Bills for {selected_store}</h3>
+        <h3 style="margin-bottom: 10px;">Bills count for {selected_store}</h3>
         <h1 style="
             font-size: 48px;
             margin: 0;
@@ -125,12 +130,6 @@ if selected_storeId is not None:
     """,
     unsafe_allow_html=True
 )
-
-    # If still None or zero, show helpful messages
-    if bill_count is None:
-        st.warning("Could not count bills due to an error.")
-    else:
-        st.metric(label=f"Bill count for '{selected_store}'", value=bill_count)
 else:
     st.info("Selected store has no _id or store id could not be determined.")
 
