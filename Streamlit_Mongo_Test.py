@@ -157,18 +157,7 @@ def render_card(title: str, main_text: str, subtitle: Optional[str] = None, bg: 
 # -----------------------
 st.title("Apeiros Customer Support")
 
-# Left: Optional store table preview (collapsed)
-with st.expander("Store list preview (first 100 rows)", expanded=False):
-    try:
-        preview_df = pd.DataFrame(list(store_details.find({}, {"storeName":1}).limit(100)))
-        if not preview_df.empty:
-            preview_df = preview_df.rename(columns={"_id": "storeId"})
-            preview_df["storeId"] = preview_df["storeId"].astype(str)
-            st.dataframe(preview_df)
-        else:
-            st.write("No stores to preview.")
-    except Exception as e:
-        st.write("Preview error:", e)
+
 
 # Select store
 stores = get_store_list()
