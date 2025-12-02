@@ -155,8 +155,10 @@ if selected_store:
     #Plotting the results
     a,b=st.columns(2,gap="small")
     with a:
+        st.space(size="small") 
         styled_metric("Phone Number 📞", phone_value, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     with b:
+        st.space(size="small") 
         styled_metric("Onboard Date ✈️", onboard_date, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     c,d=st.columns(2,gap="small")
     with c:
@@ -169,8 +171,10 @@ if selected_store:
     st.subheader("Wallet Information")   
     e,f=st.columns(2,gap='small')
     with e:
+        st.space(size="small") 
         styled_metric("Wallet Balance 💼", wallet_balance, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     with f:
+        st.space(size="small") 
         styled_metric("Wallet Consumption ⚡", wallet_consuption, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
         
         
