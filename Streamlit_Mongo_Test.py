@@ -24,9 +24,7 @@ def styled_metric(label, value, bg_color="#2E86C1", font_color="#FFFFFF", label_
         """,
         unsafe_allow_html=True
     )
-
-mongo_uri = st.secrets["mongo"]["uri"]
-
+mongo_uri = st.secrets["mongodb"]["uri"]
 client=MongoClient(mongo_uri)
 db_retail=client['apeirosretail']
 storedetails_collection=db_retail['storeDetails']
