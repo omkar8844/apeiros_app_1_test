@@ -24,7 +24,9 @@ def styled_metric(label, value, bg_color="#2E86C1", font_color="#FFFFFF", label_
         """,
         unsafe_allow_html=True
     )
-mongo_uri = st.secrets["mongodb"]["uri"]
+
+mongo_uri = st.secrets["mongo"]["uri"]
+
 client=MongoClient(mongo_uri)
 db_retail=client['apeirosretail']
 storedetails_collection=db_retail['storeDetails']
@@ -37,38 +39,41 @@ today = datetime.today()
 start = datetime(today.year, today.month, today.day)
 end = datetime(today.year, today.month, today.day, 23, 59, 59)
 bill_docs_bar = list(billReq.find({"createdAt": {"$gte": start, "$lte": end}},{"billId": 1, "storeId": 1, "_id": 0}))
-today_bill_df=(pd.DataFrame(bill_docs_bar))
-store_ids_bar = today_bill_df["storeId"].unique().tolist()
-store_map=[]
-#({'billId': {'$in': bill_ids}}))
-for i in list(storedetails_collection.find({'_id':{'$in':store_ids_bar}})):
-    store_map.append({
-        "storeId":i['_id'],
-        "storeName":i['storeName']
-        })
-#store_map = {doc["_id"]: doc["storeName"] for doc in storedetails_collection.find()}
-store_map_df=(pd.DataFrame(store_map))
-today_bill_df=today_bill_df.merge(store_map_df,on='storeId',how='inner')
-st.write("Today's Bill Count- ",today_bill_df['billId'].nunique())
+if bill_docs_bar:
+    today_bill_df=(pd.DataFrame(bill_docs_bar))
+    store_ids_bar = today_bill_df["storeId"].unique().tolist()
+    store_map=[]
+    #({'billId': {'$in': bill_ids}}))
+    for i in list(storedetails_collection.find({'_id':{'$in':store_ids_bar}})):
+        store_map.append({
+            "storeId":i['_id'],
+            "storeName":i['storeName']
+            })
+    #store_map = {doc["_id"]: doc["storeName"] for doc in storedetails_collection.find()}
+    store_map_df=(pd.DataFrame(store_map))
+    today_bill_df=today_bill_df.merge(store_map_df,on='storeId',how='inner')
+    st.write("Today's Bill Count- ",today_bill_df['billId'].nunique())
 
-bill_count_df = (
-    today_bill_df.groupby("storeName")["billId"]
-    .count()
-    .reset_index()
-    .rename(columns={"billId": "billCount"})
-)
-chart = (
-    alt.Chart(bill_count_df)
-    .mark_bar()
-    .encode(
-        x=alt.X("storeName:N", sort="-y", title="Store Name"),
-        y=alt.Y("billCount:Q", title="Number of Bills"),
-        tooltip=["storeName", "billCount"]
+    bill_count_df = (
+        today_bill_df.groupby("storeName")["billId"]
+        .count()
+        .reset_index()
+        .rename(columns={"billId": "billCount"})
     )
-    .properties(height=400)
-)
+    chart = (
+        alt.Chart(bill_count_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("storeName:N", sort="-y", title="Store Name"),
+            y=alt.Y("billCount:Q", title="Number of Bills"),
+            tooltip=["storeName", "billCount"]
+        )
+        .properties(height=400)
+    )
 
-st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, use_container_width=True)
+else:
+    st.subheader('No Bills Till Now')
 #------------------------------------------------------------------
 st.title("Store Insights 📺")
 selected_store=st.selectbox("Choose a store",store_names,index=ind)
@@ -155,10 +160,8 @@ if selected_store:
     #Plotting the results
     a,b=st.columns(2,gap="small")
     with a:
-        st.space(size="small") 
         styled_metric("Phone Number 📞", phone_value, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     with b:
-        st.space(size="small") 
         styled_metric("Onboard Date ✈️", onboard_date, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     c,d=st.columns(2,gap="small")
     with c:
@@ -171,10 +174,8 @@ if selected_store:
     st.subheader("Wallet Information")   
     e,f=st.columns(2,gap='small')
     with e:
-        st.space(size="small") 
         styled_metric("Wallet Balance 💼", wallet_balance, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     with f:
-        st.space(size="small") 
         styled_metric("Wallet Consumption ⚡", wallet_consuption, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
         
         
