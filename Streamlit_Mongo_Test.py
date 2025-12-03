@@ -147,8 +147,14 @@ if selected_store:
     wallet_doc=list(wallet_collection.find({'tenantId':tenantId}))
     wallet_bal=[i['currentAvailable'] for i in wallet_doc]
     wallet_cons=[i['lifetimeConsumption'] for i in wallet_doc]
-    wallet_balance=round(wallet_bal[0],2)
-    wallet_consuption=round(wallet_cons[0],2)
+    if wallet_bal:
+        wallet_balance=round(wallet_bal[0],2)
+    else:
+        wallet_balance=0
+    if wallet_cons:
+        wallet_consuption=round(wallet_cons[0],2)
+    else:
+        wallet_consuption=0
 
     #Getting bill ID count
     bill_count=len(set(bill_ids))
