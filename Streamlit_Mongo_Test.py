@@ -45,6 +45,8 @@ rec_ex=db_bills['receiptExtractedData']
 trans_bill=db_bills['billtransactions']
 #3
 wallet_collection=db_wallet['promotionalMessageCredit']
+#4
+payment_dt=db_retail['paymentDetails']
 
 #Visual Daily bill count bar graph
 st.title("Today's Bill Count")
@@ -91,7 +93,7 @@ else:
 #Store insights
 st.title("Store Insights 📺")
 store_names=storedetails_collection.distinct("storeName")
-ind=store_names.index('SAARA')
+ind=store_names.index('HP World Panvel')
 #Select store widget
 selected_store=st.selectbox("Choose a store",store_names,index=ind)
 if selected_store:
@@ -165,6 +167,30 @@ if selected_store:
         wallet_consuption=round(wallet_cons[0],2)
     else:
         wallet_consuption=0
+    
+    #Payment related reports
+    payment_doc=(list(payment_dt.find({'storeId':storeId,"transactionStatus":"success"},{'tenantId':1,'payment_id':1,"transactionStatus":1,"requestType":1,"storeId":1,"netAmount":1,"packageName":1})))    
+    #net_am
+    nt_list=[]
+    #st.write(payment_doc)
+    if payment_doc:
+        net_amt=[i['netAmount'] for i in payment_doc]
+        for i in net_amt:
+            if i is not None:
+                nt_list.append(float(i))
+        if len(nt_list)>0:
+            nt=sum(nt_list)
+        else:
+            nt=0
+    else:
+        nt=0
+    pcg=[i["packageName"] for i in payment_doc]
+    if len(pcg)>0:
+        for i in pcg:
+            pcg_name=(i)
+    else:
+        pcg_name='No record'
+    
     #Plotting the results
     a,b=st.columns(2,gap="small")
     with a:
@@ -178,14 +204,23 @@ if selected_store:
     with d:
         st.space(size="small") 
         styled_metric("Total Revenue 📈", final_total_rev, bg_color="#27AE60", font_color="#FFFFFF", label_size="20px", value_size="28px")
-
-    st.subheader("Wallet Information")   
-    e,f=st.columns(2,gap='small')
+    st.subheader("Wallet Information")  
+    e,f= st.columns(2,gap="small")
     with e:
+        st.space(size="small")
         styled_metric("Wallet Balance 💼", wallet_balance, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     with f:
+        st.space(size="small")
         styled_metric("Wallet Consumption ⚡", wallet_consuption, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
-        
+    
+    g,h=st.columns(2,gap='small')
+    with g:
+        st.space(size="small")
+        styled_metric("Total Payment 💵",nt, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
+    with h:
+        st.space(size="small")
+        styled_metric("Package Name 📦",pcg_name, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
+    
         
     #Creating show bills button
     show_bills = st.checkbox("Show Bills") 
