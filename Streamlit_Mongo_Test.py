@@ -1,8 +1,8 @@
 import streamlit as st
 from pymongo import MongoClient
 import pandas as pd
-import datetime
-from datetime import datetime
+import datetime as dtm
+from datetime import datetime, date, timedelta
 import altair as alt
 
 #HTML BLOCKS
@@ -48,6 +48,20 @@ wallet_collection=db_wallet['promotionalMessageCredit']
 #4
 payment_dt=db_retail['paymentDetails']
 
+#---------------------------------------------------------------------------------------------------------------
+# #date filter 
+
+
+# date_range=st.date_input("When's your birthday", dtm.date(2019, 7, 6))
+# #Visual total onboards with filter
+
+# pipeline = [
+#     {"$group": {"_id": "$_id"}},   # group by _id
+#     {"$count": "distinctCount"}    # count groups
+# ]
+# store_count_dict=list(storedetails_collection.aggregate(pipeline))
+# st.write(store_count_dict[0]["distinctCount"])
+#------------------------------------------------------------------------------
 #Visual Daily bill count bar graph
 st.title("Today's Bill Count")
 today = datetime.today()
@@ -174,30 +188,39 @@ if selected_store:
     nt_list=[]
     #st.write(payment_doc)
     if payment_doc:
-        net_amt=[i['netAmount'] for i in payment_doc]
-        for i in net_amt:
-            if i is not None:
-                nt_list.append(float(i))
-        if len(nt_list)>0:
-            nt=sum(nt_list)
-        else:
+        try:
+            net_amt=[i['netAmount'] for i in payment_doc]
+            for i in net_amt:
+                if i is not None:
+                    nt_list.append(float(i))
+            if len(nt_list)>0:
+                nt=sum(nt_list)
+            else:
+                nt=0
+        except KeyError:
             nt=0
     else:
         nt=0
     pcg=[i["packageName"] for i in payment_doc]
     if len(pcg)>0:
         for i in pcg:
-            pcg_name=(i)
+            if i=="</div>":
+                pcg_name="No Record"
+            else:
+                pcg_name=(i)
     else:
         pcg_name='No record'
+        
+    #Daily Bill Count 
+    
     
     #Plotting the results
     a,b=st.columns(2,gap="small")
     with a:
-        st.space(size="small") 
+        st.space(size="small")
         styled_metric("Phone Number 📞", phone_value, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     with b:
-        st.space(size="small") 
+        st.space(size="small")
         styled_metric("Onboard Date ✈️", onboard_date, bg_color="#34495E", font_color="#F1C40F", label_size="20px", value_size="28px")
     c,d=st.columns(2,gap="small")
     with c:
