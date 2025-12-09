@@ -133,7 +133,6 @@ if selected_store:
     total_trans_amount=0
     #getting respective bills
     bill_doc=list(billReq.find({'storeId':storeId},{'storeId':1,'billId':1,'createdAt':1,'name':1}))
-   
     bill_ids=[i['billId'] for i in bill_doc]    
     #Getting bill ID count
     bill_count=len(set(bill_ids))
@@ -211,10 +210,21 @@ if selected_store:
     else:
         pcg_name='No record'
         
-    #Daily Bill Count 
-    
+    #Daily Bill Count
+    todyas_bills=list(billReq.find({
+    'storeId': storeId,
+    'createdAt': {
+        '$gte': start,
+        '$lte': end
+    }
+    },{'billId':1,'_id':0})) 
+    td_bill_count=len(todyas_bills)
     
     #Plotting the results
+    z,=st.columns(1)
+    with z:
+        st.space(size="small") 
+        styled_metric("Today's Bill Count 🧾", td_bill_count, bg_color="#27AE60", font_color="#FFFFFF", label_size="20px", value_size="28px")
     a,b=st.columns(2,gap="small")
     with a:
         st.space(size="small")
