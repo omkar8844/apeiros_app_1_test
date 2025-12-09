@@ -224,7 +224,7 @@ if selected_store:
     z,=st.columns(1)
     with z:
         st.space(size="small") 
-        styled_metric("Today's Bill Count 🧾", td_bill_count, bg_color="#27AE60", font_color="#FFFFFF", label_size="20px", value_size="28px")
+        styled_metric("Today's Bill Count for Selected Store 🧾", td_bill_count, bg_color="#27AE60", font_color="#FFFFFF", label_size="20px", value_size="28px")
     a,b=st.columns(2,gap="small")
     with a:
         st.space(size="small")
