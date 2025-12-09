@@ -125,7 +125,10 @@ if selected_store:
     org_doc=list(org.find({'tenantId':tenantId},{'tenantId':1,'phoneNumber':1}))
     #Getting Phone number
     phone_list=[i['phoneNumber'] for i in org_doc]
-    phone_value=phone_list[0][0]
+    try:
+        phone_value=phone_list[0][0]
+    except IndexError:
+        phone_value="No Record"
     
     #for Bill amount sum
     total_in_amount=0
