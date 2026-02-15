@@ -27,7 +27,7 @@ def styled_metric(label, value, bg_color="#2E86C1", font_color="#FFFFFF", label_
     )
 
 
-ACCESS_KEY = "Raj@apeiros0987654321"
+ACCESS_KEY = "Raj@apeiros"
 
 st.title("Support Dashboard Login 🔐")
 
